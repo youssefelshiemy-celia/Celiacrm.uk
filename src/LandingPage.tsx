@@ -644,13 +644,16 @@ export default function LandingPage({ lang, onViewMagazine, onGoToElite, onGoToH
     setIsMobileMenuOpen(false);
   };
 
-  const handleFormSubmit = async (e: React.FormEvent, type: 'enquiry' | 'subscription') => {
+const handleFormSubmit = async (e: React.FormEvent, type: 'enquiry' | 'subscription') => {
     e.preventDefault();
-    console.log(`Submitting ${type} form...`);
+    console.log(`Submitting ${type} form to Netlify Functions...`);
     setFormStatus({ type, status: 'loading' });
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
+
+    // تأكد من إرسال الـ type جوه الجسم عشان الفانكشن تفرق بين الإيميلات
+    Object.assign(data, { type });
 
     if (type === 'subscription') {
         Object.assign(data, {
@@ -659,25 +662,24 @@ export default function LandingPage({ lang, onViewMagazine, onGoToElite, onGoToH
     }
 
     try {
-        const response = await fetch(`/api/${type}`, {
+        // التعديل الجوهري في المسار هنا
+        const response = await fetch('/.netlify/functions/send-mail', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         
         if (response.ok) {
-            const result = await response.json().catch(() => ({}));
             setFormStatus({ 
                 type, 
-                status: 'success',
-                message: result.simulated ? 'SIMULATED: Email not sent because SMTP is not configured in .env' : undefined
+                status: 'success'
             });
         } else {
-            console.warn("Form submission failed on server", type);
+            console.error("Form submission failed on Netlify Function", response.status);
             setFormStatus({ type, status: 'error' });
         }
     } catch (err) {
-        console.warn("Form submission network error", err);
+        console.error("Network error sending form", err);
         setFormStatus({ type, status: 'error' });
     }
   };
