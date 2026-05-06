@@ -1073,7 +1073,8 @@ export default function LandingPage({ lang, onViewMagazine, onGoToElite, onGoToH
 
           <div className="flex-1">
             <div className="bg-white dark:bg-slate-800 p-8 md:p-14 rounded-[4rem] border border-brand-teal/5 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.1)]">
-               <form onSubmit={(e) => handleFormSubmit(e, 'enquiry')} className="space-y-8">
+               <form name="enquiry-form" data-netlify="true" onSubmit={(e) => handleFormSubmit(e, 'enquiry')} className="space-y-8">
+                <input type="hidden" name="form-name" value="enquiry-form" />
                   <div className="space-y-3">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-teal/40 dark:text-slate-500 font-bold">{t.forms.enquiry.name}</label>
                     <input name="name" required className="w-full px-8 py-5 bg-surface-paper dark:bg-slate-700/30 dark:text-white rounded-2xl border border-transparent focus:border-brand-gold-bright outline-none transition-all" placeholder="Enter Estate Name" />

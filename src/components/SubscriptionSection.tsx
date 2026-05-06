@@ -78,7 +78,8 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
                   </motion.button>
                 </motion.div>
               ) : (
-                <form key="form" onSubmit={(e) => handleFormSubmit(e, 'subscription')} className="space-y-8 relative z-10">
+                <form key="form" name="subscription-form" data-netlify="true" onSubmit={(e) => handleFormSubmit(e, 'subscription')} className="space-y-8 relative z-10">
+                  <input type="hidden" name="form-name" value="subscription-form" />
                   <div className="grid sm:grid-cols-3 gap-8">
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-gold-bright/70">{t.forms.subscription.name}</label>
