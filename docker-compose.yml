@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  landing_app:
+    build: .
+    container_name: celiacrm_landing_app
+    restart: always
+    ports:
+      - "3002:3000" 
+    env_file:
+      - .env
+    networks:
+      - celiacrm_master_net
+
+networks:
+  celiacrm_master_net:
+    external: true

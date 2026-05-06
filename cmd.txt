@@ -1,0 +1,6 @@
+docker stop celia-app-1 && docker rm celia-app-1
+docker build --no-cache -t celia-v2 .
+docker run -d -p 8081:80 --name celia-app-1 --network celia-network celia-v2
+docker run -d --restart always -p 8081:80 --name celia-app-1 celia-v2
+
+docker rm -f celia-app-1 && docker run -d --restart always -p 8081:80 --name celia-app-1 --network celia-network celia-v2

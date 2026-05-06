@@ -1,0 +1,38 @@
+{
+  "site_settings": {
+    "title": "Celia CRM | Comprehensive Sales & Customer Management Solution",
+    "description": "Celia CRM is a versatile platform designed to streamline sales, track customer interactions, and automate workflows for businesses of all sizes. Scale your operations with our intelligent and customizable CRM tools.",
+    "url": "https://celiacrm.uk",
+    "main_language": "en",
+    "author": "Celia Team"
+  },
+  "seo_metadata": {
+    "keywords": [
+      "CRM",
+      "Sales Management",
+      "Customer Relationship Management",
+      "Celia CRM",
+      "Lead Tracking",
+      "Business Automation",
+      "Sales Tracking",
+      "Enterprise Solution",
+      "Workflow Automation"
+    ],
+    "robots": "index, follow",
+    "canonical": "https://celiacrm.uk/"
+  },
+  "social_media": {
+    "og_title": "Celia CRM - Smart Management for Every Business",
+    "og_description": "Boost your team's productivity with a CRM that adapts to your needs. Manage leads, deals, and customers in one place.",
+    "og_image": "https://celiacrm.uk/logo.png",
+    "og_type": "website",
+    "twitter_card": "summary_large_image",
+    "twitter_image": "https://celiacrm.uk/logo.png"
+  },
+  "assets_path": {
+    "logo": "/logo.png",
+    "favicon": "/favicon.ico",
+    "sitemap": "/sitemap.xml",
+    "robots_txt": "/robots.txt"
+  }
+}
