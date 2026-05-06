@@ -1,124 +1,107 @@
-/**
- * Cloudflare Pages Function for sending emails
- * This replaces the local Express backend for mail sending.
- * 
- * Deployment Instructions:
- * 1. Create a folder named 'functions' at the root of your project.
- * 2. Place this file inside it: functions/api/send-mail.js
- * 3. Add your secrets (SMTP_HOST, SMTP_USER, etc.) in the Cloudflare Pages Dashboard under Settings > Environment Variables.
- */
+const nodemailer = require('nodemailer');
 
-// GET handler for health checks
-export async function onRequestGet() {
-    return new Response(JSON.stringify({ 
-        status: "alive", 
-        message: "Celia CRM Mail Function is active. Use POST to send emails." 
-    }), {
-        headers: { "Content-Type": "application/json" }
-    });
-}
-
-export async function onRequestPost(context) {
-    const { request, env } = context;
-
-    const headers = { 
-        "Content-Type": "application/json",
+exports.handler = async (event, context) => {
+    const headers = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
+        "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers });
-
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+    if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers };
 
     try {
-        const bodyText = await request.text();
-        if (!bodyText) return jsonResponse({ error: "Empty request body" }, 400);
-
-        let data;
-        try {
-            data = JSON.parse(bodyText);
-        } catch (e) {
-            return jsonResponse({ error: "Malformed JSON" }, 400);
-        }
-
-        const { type, name, email, subject, message } = data;
-        if (!email || !name || !message) {
-            return jsonResponse({ error: "Missing required fields: name, email, and message are mandatory" }, 400);
-        }
-
-        const recipient = type === 'subscription' ? "Sales@celiacrm.uk" : "info@celiacrm.uk";
-        const emailSubject = `Celia CRM ${type === 'subscription' ? 'Subscription' : 'Enquiry'} [${name}]`;
+        // استخراج النوع من المسار (لحالات /api/subscription) أو من الجسم
+        const pathParts = event.path.split('/');
+        const typeFromPath = pathParts[pathParts.length - 1]; 
         
-        // Clean extra data for display
-        const extraEntries = Object.entries(data)
-            .filter(([k]) => !['type', 'name', 'email', 'subject', 'message'].includes(k))
-            .map(([k, v]) => `<p><strong>${k.toUpperCase()}:</strong> ${v}</p>`)
-            .join('');
+        const data = JSON.parse(event.body);
+        const type = data.type || typeFromPath; // التأكد من نوع الفورم
+        const { name, email, subject, message } = data;
 
-        const html = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; color: #002b33; border: 1px solid #e6c88a; padding: 20px;">
-                <h2 style="color: #004854; border-bottom: 2px solid #e6c88a; padding-bottom: 10px;">Celia CRM Notification</h2>
-                <div style="margin: 20px 0;">
-                    <p><strong>Name:</strong> ${name}</p>
-                    <p><strong>Email:</strong> ${email}</p>
-                    ${extraEntries}
-                    <p><strong>Subject:</strong> ${subject || 'New Request'}</p>
+        if (!email || !name) {
+            return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing required fields" }) };
+        }
+
+        // إعداد المستلم بناءً على النوع
+        const isSubscription = type === 'subscription';
+        const recipient = isSubscription ? "Sales@celiacrm.uk" : "info@celiacrm.uk";
+        const emailSubject = `Celia CRM ${isSubscription ? 'Subscription' : 'Enquiry'} [${name}]`;
+
+        // تجميع البيانات الإضافية لفورم الاشتراك
+        const extraInfo = isSubscription ? `
+            <p><strong>WhatsApp:</strong> ${data.whatsapp || 'N/A'}</p>
+            <p><strong>Country:</strong> ${data.country || 'N/A'}</p>
+            <p><strong>Team Size:</strong> ${data.employees || 'N/A'}</p>
+            <p><strong>Sector:</strong> ${data.sector || 'N/A'}</p>
+            <p><strong>Plan:</strong> ${data.plan || 'Elite'}</p>
+        ` : '';
+
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT) || 587,
+            secure: false,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
+        });
+
+        // 1. إرسال الإشعار لك (Admin Notification)
+        await transporter.sendMail({
+            from: `"Celia CRM System" <${process.env.SMTP_USER}>`,
+            to: recipient,
+            subject: emailSubject,
+            html: `
+                <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e6c88a;">
+                    <h2 style="color: #004854;">New Request Received</h2>
+                    <p><strong>From:</strong> ${name} (${email})</p>
+                    ${extraInfo}
+                    <p><strong>Subject:</strong> ${subject || 'No Subject'}</p>
+                    <div style="background: #fcfaf2; padding: 15px; border-left: 4px solid #e6c88a;">
+                        <strong>Message:</strong><br/>${message}
+                    </div>
                 </div>
-                <div style="background: #fcfaf2; padding: 15px; border-left: 5px solid #9e8a5a;">
-                    <strong>Message:</strong><br/>
-                    <p style="white-space: pre-wrap;">${message}</p>
+            `,
+            replyTo: email
+        });
+
+        // 2. إرسال الرد الآلي للعميل (Auto-Reply)
+        const autoReplyHtml = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #004854; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="color: #004854;">Celia CRM</h1>
+                    <p style="color: #9e8a5a; font-weight: bold; text-transform: uppercase;">Institutional Digital Sovereignty</p>
                 </div>
-                <p style="font-size: 10px; color: #999; margin-top: 30px; text-align: center;">Celia CRM Institutional Relay</p>
+                <p>Dear <strong>${name}</strong>,</p>
+                <p>Thank you for reaching out to Celia CRM. Your request regarding <strong>"${subject || 'Sovereign Partnership'}"</strong> has been received by our strategic team.</p>
+                <p>One of our elite consultants will review your inquiry and contact you via official channels within the next few business hours.</p>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="font-size: 12px; color: #666; text-align: center;">
+                    This is an automated confirmation from the Celia CRM Neural Center.<br/>
+                    CeliaCRM.uk - The Strategic Stronghold for Digital Empires.
+                </p>
             </div>
         `;
 
-        // 1. Try Resend
-        if (env.RESEND_API_KEY) {
-            try {
-                const resendRes = await fetch("https://api.resend.com/emails", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${env.RESEND_API_KEY}`
-                    },
-                    body: JSON.stringify({
-                        from: env.SMTP_FROM || "Celia CRM <onboarding@resend.dev>",
-                        to: [recipient],
-                        subject: emailSubject,
-                        html,
-                        reply_to: email
-                    })
-                });
+        await transporter.sendMail({
+            from: `"Celia CRM Team" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: "Welcome to the Elite - Celia CRM Confirmation",
+            html: autoReplyHtml
+        });
 
-                if (resendRes.ok) return jsonResponse({ success: true, provider: "resend" });
-            } catch (e) { console.error("Resend skip:", e.message); }
-        }
-
-        // 2. Try MailChannels
-        try {
-            const mcRes = await fetch("https://api.mailchannels.net/tx/v1/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    personalizations: [{ to: [{ email: recipient }] }],
-                    from: { email: env.SMTP_FROM || "info@celiacrm.uk", name: "Celia CRM Notify" },
-                    subject: emailSubject,
-                    content: [{ type: "text/html", value: html }]
-                })
-            });
-
-            if (mcRes.ok) return jsonResponse({ success: true, provider: "mailchannels" });
-            
-            const mcErr = await mcRes.text();
-            return jsonResponse({ error: "Providers failed", details: mcErr }, 502);
-            
-        } catch (e) {
-            return jsonResponse({ error: "Final relay error", message: e.message }, 500);
-        }
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true })
+        };
 
     } catch (err) {
-        return jsonResponse({ error: "Critical Error", message: err.message }, 500);
+        console.error("Mail Error:", err);
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: "Failed to process request", message: err.message })
+        };
     }
-}
+};
